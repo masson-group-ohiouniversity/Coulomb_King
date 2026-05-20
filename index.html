@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coulomb King</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: #ece4d2;
+    color: #1a1f2e;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px 64px;
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(200,48,47,0.05), transparent 35%),
+      radial-gradient(circle at 88% 92%, rgba(26,31,46,0.04), transparent 40%);
+  }
+
+  .lab { width: 100%; max-width: 1080px; }
+
+  header {
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  h1 {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: 52px;
+    line-height: 0.95;
+    letter-spacing: 0.5px;
+  }
+  h1 em { font-style: italic; color: #c8302f; }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .crown {
+    width: 64px;
+    height: auto;
+    display: block;
+    flex-shrink: 0;
+    transform: translateY(2px);
+  }
+
+  /* Intro paragraph beneath the logo — replaces the in-canvas start overlay */
+  .intro {
+    margin: 0 0 22px;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: #3a3527;
+    padding: 13px 18px;
+    border-left: 2px solid #c8302f;
+    background: rgba(200,48,47,0.04);
+    border-top: 1px solid #1a1f2e;
+    border-bottom: 1px solid #1a1f2e;
+  }
+  .intro strong { color: #1a1f2e; }
+  .intro code {
+    font-family: inherit;
+    background: rgba(26,31,46,0.07);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  .intro .plus  { color: #c8302f; font-weight: 700; }
+  .intro .minus { color: #1a1f2e; font-weight: 700; }
+  .intro .blue  { color: #1e6fae; font-weight: 700; }
+
+  /* On/off toggle */
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 10px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: #5a5547;
+    user-select: none;
+    padding: 4px 0;
+  }
+  .toggle .text { line-height: 1; }
+  .toggle input { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
+  .toggle .slider {
+    width: 40px;
+    height: 20px;
+    background: #ece4d2;
+    border: 1px solid #1a1f2e;
+    border-radius: 11px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle .slider::before {
+    content: '';
+    position: absolute;
+    top: 1px; left: 1px;
+    width: 16px; height: 16px;
+    background: #1a1f2e;
+    border-radius: 50%;
+    transition: left 0.2s, background 0.2s;
+  }
+  .toggle input:checked ~ .slider { background: #c8302f; }
+  .toggle input:checked ~ .slider::before {
+    left: 21px;
+    background: #fffaf0;
+  }
+  .toggle:hover .slider { border-color: #c8302f; }
+  .toggle input:checked ~ .text { color: #c8302f; }
+
+  .canvas-frame {
+    border: 1px solid #1a1f2e;
+    background: #f6f0e0;
+    padding: 10px;
+    position: relative;
+    box-shadow: 6px 6px 0 #1a1f2e;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: crosshair;
+    background: #f9f4e6;
+    touch-action: none;
+  }
+
+  /* Overlay banner (start hint + game over) */
+  .overlay {
+    position: absolute;
+    inset: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 5;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  .overlay .card {
+    background: rgba(246, 240, 224, 0.96);
+    border: 1px solid #1a1f2e;
+    padding: 26px 40px;
+    text-align: center;
+    max-width: 560px;
+    box-shadow: 5px 5px 0 #1a1f2e;
+  }
+  .overlay .card .big {
+    font-family: 'Instrument Serif', serif;
+    font-size: 38px;
+    line-height: 1.05;
+    margin-bottom: 6px;
+  }
+  .overlay .card .big em { font-style: italic; color: #c8302f; }
+  .overlay .card .score-final {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    color: #c8302f;
+    font-size: 78px;
+    line-height: 1;
+    margin: 6px 0;
+  }
+  .overlay .card .sub {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #5a5547;
+    margin-top: 8px;
+  }
+
+  /* Score + Time, next to the logo */
+  .header-stats {
+    display: flex;
+    align-items: baseline;
+    gap: 36px;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: #5a5547;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+    color: #1a1f2e;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-value.score.pos { color: #2a7a3a; }
+  .stat-value.score.neg { color: #c8302f; }
+  .stat-value.time.low  { color: #c8302f; animation: blink 0.9s infinite; }
+  .stat-value.time.over { color: #c8302f; }
+  @keyframes blink { 50% { opacity: 0.35; } }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  button {
+    background: #1a1f2e;
+    color: #f6f0e0;
+    border: none;
+    padding: 9px 16px;
+    font-family: inherit;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  button:hover { background: #c8302f; }
+
+  .info {
+    margin-top: 20px;
+    font-size: 12px;
+    line-height: 1.65;
+    color: #3a3527;
+    padding: 13px 16px;
+    border-left: 2px solid #c8302f;
+    background: rgba(200,48,47,0.04);
+  }
+  .info strong { color: #1a1f2e; }
+  .info code {
+    font-family: inherit;
+    background: rgba(26,31,46,0.07);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="lab">
+  <header>
+    <div class="logo">
+      <svg class="crown" viewBox="0 0 120 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Crown body: 3-point coronet -->
+        <path d="M 8 55 L 18 25 L 36 40 L 60 10 L 84 40 L 102 25 L 112 55 Z"
+              fill="#c8302f" stroke="#1a1f2e" stroke-width="2.5" stroke-linejoin="round"/>
+        <!-- Band -->
+        <rect x="6" y="55" width="108" height="9" fill="#c8302f" stroke="#1a1f2e" stroke-width="2.5"/>
+        <!-- Band pearls -->
+        <circle cx="30" cy="59.5" r="2" fill="#fffaf0"/>
+        <circle cx="60" cy="59.5" r="2" fill="#fffaf0"/>
+        <circle cx="90" cy="59.5" r="2" fill="#fffaf0"/>
+        <!-- Side jewels -->
+        <circle cx="18" cy="25" r="3.5" fill="#1a1f2e"/>
+        <circle cx="102" cy="25" r="3.5" fill="#1a1f2e"/>
+        <!-- Center jewel — the + charge -->
+        <circle cx="60" cy="10" r="8" fill="#fffaf0" stroke="#1a1f2e" stroke-width="2.5"/>
+        <line x1="55" y1="10" x2="65" y2="10" stroke="#c8302f" stroke-width="3.5" stroke-linecap="round"/>
+        <line x1="60" y1="5"  x2="60" y2="15" stroke="#c8302f" stroke-width="3.5" stroke-linecap="round"/>
+      </svg>
+      <h1>Coulomb <em>King</em></h1>
+    </div>
+    <div class="header-stats">
+      <div class="stat">
+        <div class="stat-label">Score</div>
+        <div class="stat-value score" id="score">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Time</div>
+        <div class="stat-value time" id="time">2:00</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button id="reset">↻ Reset</button>
+      <label class="toggle" title="OFF — easy: positive dots are stationary; negative dots are attracted by positive dots.&#10;ON — hard: all particles interact with each other.">
+        <span class="text">Full Coulomb</span>
+        <input type="checkbox" id="all-interact">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </header>
+
+  <div class="intro">
+    Click anywhere on the board to place a <span class="plus">+</span> charge. Blue targets are neutral; positive dots are 20 times heavier than negative dots.
+  </div>
+
+  <div class="canvas-frame">
+    <canvas id="board" width="1200" height="600"></canvas>
+    <div class="overlay hidden" id="overlay">
+      <div class="card">
+        <div class="big" id="overlay-title"></div>
+        <div class="sub" id="overlay-sub"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ============ Setup ============
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;   // 1200
+  const H = canvas.height;  // 600
+
+  // Board coords: x in [-2, 2], y in [-1, 1].
+  // Canvas y is flipped (canvas origin is top-left).
+  const PX = 300; // pixels per board unit
+
+  const boardToCanvas = (bx, by) => [(bx + 2) * PX, (1 - by) * PX];
+  const canvasToBoard = (cx, cy) => [cx / PX - 2, 1 - cy / PX];
+
+  // ============ Parameters ============
+  const P = {
+    // Physics
+    k: 0.1,
+    qPos: 1.0,
+    qNeg: 1.0,
+    mNeg: 1.0,
+    mPos: 20.0,           // mass of + (heavy — only relevant in Full Coulomb mode)
+    rNeg: 0.02,
+    rPos: 0.06,
+    rTarget: 0.06,        // same size as +
+    softR: 0.01,
+    spawnInterval: 3.0,
+    negLifetime: 20,
+    fadeBegin: 18,
+    substeps: 6,
+    // Game
+    gameDuration: 120,    // 2 minutes
+    targetMargin: 0.15,   // keep target this far from the canvas edges
+    targetMinDist: 0.30   // keep target this far from + charges and spawn point
+  };
+
+  // ============ State ============
+  let positives = [];      // {x, y, vx, vy}  — vx/vy only used in Full Coulomb mode
+  let negatives = [];      // {x, y, vx, vy, born}
+  // OFF (default): negatives feel only positives; positives are stationary; nothing else interacts.
+  // ON  (Full Coulomb): every charge feels every other — +/− attract, +/+ repel, −/− repel.
+  let allInteract = false;
+  let effects = [];
+  let target = null;       // {x, y}
+  let score = 0;
+  let started = false;
+  let gameOver = false;
+  let elapsed = 0;         // internal sim time (also drives countdown)
+  let sinceLastSpawn = 0;
+  let lastTime = 0;
+
+  // ============ Target placement ============
+  function placeTarget() {
+    const m = P.targetMargin;
+    const xMin = -2 + m, xMax = 2 - m;
+    const yMin = -1 + m, yMax = 1 - m;
+    const minD = P.targetMinDist;
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const x = xMin + Math.random() * (xMax - xMin);
+      const y = yMin + Math.random() * (yMax - yMin);
+      // Keep distance from spawn point (0, 0)
+      if (Math.hypot(x, y) < minD) continue;
+      // Keep distance from existing + charges
+      let ok = true;
+      for (const p of positives) {
+        if (Math.hypot(x - p.x, y - p.y) < minD) { ok = false; break; }
+      }
+      if (ok) { target = { x, y }; return; }
+    }
+    // Fallback if everything is crowded
+    target = { x: (Math.random() * 3.6) - 1.8, y: -0.5 + Math.random() * 0.6 };
+  }
+
+  // ============ Overlay ============
+  const overlayEl = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlaySub = document.getElementById('overlay-sub');
+  function showGameOverOverlay() {
+    overlayTitle.innerHTML = `Game Over <span class="score-final">${score}</span>`;
+    overlaySub.textContent = 'Press ↻ Reset to play again';
+    overlayEl.classList.remove('hidden');
+  }
+  function hideOverlay() { overlayEl.classList.add('hidden'); }
+
+  // ============ Input ============
+  function placeChargeFromEvent(e) {
+    if (gameOver) return;
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    const cx = (e.clientX - rect.left) * sx;
+    const cy = (e.clientY - rect.top) * sy;
+    const [bx, by] = canvasToBoard(cx, cy);
+    if (bx < -2 || bx > 2 || by < -1 || by > 1) return;
+    // Don't allow placing a + that overlaps the target (touching/adjacent is fine)
+    if (target) {
+      const dxt = target.x - bx, dyt = target.y - by;
+      if (dxt * dxt + dyt * dyt < (P.rTarget + P.rPos) * (P.rTarget + P.rPos)) {
+        spawnReject(bx, by);
+        return;
+      }
+    }
+    positives.push({ x: bx, y: by, vx: 0, vy: 0 });
+    if (!started) {
+      started = true;
+      sinceLastSpawn = 0;
+      negatives.push({ x: 0, y: 0, vx: 0, vy: 0, born: elapsed });
+      hideOverlay();
+    }
+  }
+  canvas.addEventListener('pointerdown', placeChargeFromEvent);
+
+  // Full-Coulomb toggle — flips between original game (off) and full interactions (on)
+  document.getElementById('all-interact').addEventListener('change', (e) => {
+    allInteract = e.target.checked;
+    if (!allInteract) {
+      // When switching back to the simple mode, freeze positives at rest
+      for (const p of positives) { p.vx = 0; p.vy = 0; }
+    }
+  });
+
+  function fullReset() {
+    positives = [];
+    negatives = [];
+    effects = [];
+    score = 0;
+    started = false;
+    gameOver = false;
+    elapsed = 0;
+    sinceLastSpawn = 0;
+    placeTarget();
+    hideOverlay();
+  }
+  document.getElementById('reset').addEventListener('click', fullReset);
+
+  // ============ Physics ============
+  function physics(dt) {
+    if (!started) return;
+    // Spawn timer — only while the round is live
+    if (!gameOver) {
+      sinceLastSpawn += dt;
+      while (sinceLastSpawn >= P.spawnInterval) {
+        negatives.push({ x: 0, y: 0, vx: 0, vy: 0, born: elapsed });
+        sinceLastSpawn -= P.spawnInterval;
+      }
+    }
+    // Substep integration. Negatives only feel forces from positives — never from each other.
+    const sdt = dt / P.substeps;
+    for (let s = 0; s < P.substeps; s++) step(sdt);
+    // Lifetime cap: − dots vanish after P.negLifetime with a little puff
+    for (let i = negatives.length - 1; i >= 0; i--) {
+      if (elapsed - negatives[i].born > P.negLifetime) {
+        spawnPoof(negatives[i].x, negatives[i].y);
+        negatives.splice(i, 1);
+      }
+    }
+  }
+
+  function step(dt) {
+    const minR2 = P.softR * P.softR;
+
+    // ---- Update negatives ----
+    for (let i = negatives.length - 1; i >= 0; i--) {
+      const n = negatives[i];
+
+      let fx = 0, fy = 0;
+      // Attraction to every positive (always — this is the core game force)
+      for (const p of positives) {
+        const dx = p.x - n.x, dy = p.y - n.y;
+        let r2 = dx * dx + dy * dy;
+        if (r2 < minR2) r2 = minR2;
+        const r = Math.sqrt(r2);
+        const Fmag = P.k * P.qPos * P.qNeg / r2;
+        fx += Fmag * (dx / r);
+        fy += Fmag * (dy / r);
+      }
+      // Repulsion from every other negative (Full Coulomb only)
+      if (allInteract) {
+        for (const n2 of negatives) {
+          if (n2 === n) continue;
+          const dx = n.x - n2.x, dy = n.y - n2.y; // points AWAY from n2
+          let r2 = dx * dx + dy * dy;
+          if (r2 < minR2) r2 = minR2;
+          const r = Math.sqrt(r2);
+          const Fmag = P.k * P.qNeg * P.qNeg / r2;
+          fx += Fmag * (dx / r);
+          fy += Fmag * (dy / r);
+        }
+      }
+      // Semi-implicit Euler
+      n.vx += (fx / P.mNeg) * dt;
+      n.vy += (fy / P.mNeg) * dt;
+      n.x  += n.vx * dt;
+      n.y  += n.vy * dt;
+
+      // Collision with +
+      let hit = false;
+      for (let j = positives.length - 1; j >= 0; j--) {
+        const p = positives[j];
+        const dx = p.x - n.x, dy = p.y - n.y;
+        if (dx * dx + dy * dy < (P.rPos + P.rNeg) * (P.rPos + P.rNeg)) {
+          spawnExplosion(p.x, p.y, n.vx, n.vy);
+          if (!gameOver) {
+            score -= 1;
+            spawnScorePopup(p.x, p.y, '−1', 'loss');
+          }
+          positives.splice(j, 1);
+          hit = true;
+          break;
+        }
+      }
+
+      // Collision with target
+      if (!hit && target) {
+        const dx = target.x - n.x, dy = target.y - n.y;
+        if (dx * dx + dy * dy < (P.rTarget + P.rNeg) * (P.rTarget + P.rNeg)) {
+          spawnTargetExplosion(target.x, target.y, n.vx, n.vy);
+          if (!gameOver) {
+            score += 5;
+            spawnScorePopup(target.x, target.y, '+5', 'gain');
+            placeTarget();
+          } else {
+            target = null;
+          }
+          hit = true;
+        }
+      }
+
+      if (hit) { negatives.splice(i, 1); continue; }
+
+      // Off-board cleanup — once gone, gone (no comeback)
+      if (n.x < -2.05 || n.x > 2.05 || n.y < -1.05 || n.y > 1.05) {
+        negatives.splice(i, 1);
+      }
+    }
+
+    // ---- Update positives (Full Coulomb only) ----
+    // Heavy mass mPos → they drift sluggishly, like nuclei.
+    if (allInteract) {
+      for (let i = positives.length - 1; i >= 0; i--) {
+        const p = positives[i];
+        let fx = 0, fy = 0;
+        // Attraction to every negative
+        for (const n of negatives) {
+          const dx = n.x - p.x, dy = n.y - p.y;
+          let r2 = dx * dx + dy * dy;
+          if (r2 < minR2) r2 = minR2;
+          const r = Math.sqrt(r2);
+          const Fmag = P.k * P.qPos * P.qNeg / r2;
+          fx += Fmag * (dx / r);
+          fy += Fmag * (dy / r);
+        }
+        // Repulsion from every other positive
+        for (const p2 of positives) {
+          if (p2 === p) continue;
+          const dx = p.x - p2.x, dy = p.y - p2.y; // points AWAY from p2
+          let r2 = dx * dx + dy * dy;
+          if (r2 < minR2) r2 = minR2;
+          const r = Math.sqrt(r2);
+          const Fmag = P.k * P.qPos * P.qPos / r2;
+          fx += Fmag * (dx / r);
+          fy += Fmag * (dy / r);
+        }
+        p.vx += (fx / P.mPos) * dt;
+        p.vy += (fy / P.mPos) * dt;
+        p.x  += p.vx * dt;
+        p.y  += p.vy * dt;
+
+        // + hits the target → massive explosion destroys the +, target survives, −3 penalty
+        if (target) {
+          const dxt = target.x - p.x, dyt = target.y - p.y;
+          if (dxt * dxt + dyt * dyt < (P.rTarget + P.rPos) * (P.rTarget + P.rPos)) {
+            spawnMassiveExplosion(target.x, target.y, p.vx, p.vy);
+            if (!gameOver) {
+              score -= 3;
+              spawnScorePopup(target.x, target.y, '−3', 'loss');
+            }
+            // Target stays; positive is consumed
+            positives.splice(i, 1);
+            continue;
+          }
+        }
+
+        // Off-board: a + that drifts off the field is lost — no penalty, just a puff
+        if (p.x < -2.05 || p.x > 2.05 || p.y < -1.05 || p.y > 1.05) {
+          spawnPoof(p.x, p.y);
+          positives.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  // ============ Visual FX (purely cosmetic — non-physical embellishments OK) ============
+  function spawnExplosion(x, y, impactVx = 0, impactVy = 0) {
+    effects.push({ type: 'flash', x, y, t: 0, maxT: 0.32, color: 'red' });
+    effects.push({ type: 'ring', x, y, t: 0,     maxT: 0.60, color: 'red'  });
+    effects.push({ type: 'ring', x, y, t: -0.07, maxT: 0.55, color: 'dark' });
+    effects.push({ type: 'ring', x, y, t: -0.14, maxT: 0.45, color: 'red'  });
+    const N = 32;
+    for (let i = 0; i < N; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.6 + Math.random() * 1.8;
+      const r = Math.random();
+      const kind = r < 0.25 ? 'spark' : (r < 0.65 ? 'hot' : 'cool');
+      effects.push({
+        type: 'particle', x, y,
+        vx: Math.cos(angle) * speed + impactVx * 0.15,
+        vy: Math.sin(angle) * speed + impactVy * 0.15,
+        t: 0,
+        maxT: kind === 'spark' ? 0.40 + Math.random() * 0.40 : 0.85 + Math.random() * 0.95,
+        size: kind === 'spark' ? 0.003 + Math.random() * 0.005 : 0.007 + Math.random() * 0.016,
+        kind,
+        damp: 0.30 + Math.random() * 0.30,
+        gravity: kind === 'spark' ? -0.4 : -0.7,
+        streak: kind === 'spark'
+      });
+    }
+  }
+
+  function spawnTargetExplosion(x, y, impactVx = 0, impactVy = 0) {
+    effects.push({ type: 'flash', x, y, t: 0, maxT: 0.32, color: 'blue' });
+    effects.push({ type: 'ring',  x, y, t: 0,     maxT: 0.60, color: 'blue' });
+    effects.push({ type: 'ring',  x, y, t: -0.07, maxT: 0.55, color: 'dark' });
+    effects.push({ type: 'ring',  x, y, t: -0.14, maxT: 0.45, color: 'blue' });
+    const N = 30;
+    for (let i = 0; i < N; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.6 + Math.random() * 1.6;
+      const r = Math.random();
+      const kind = r < 0.30 ? 'spark' : (r < 0.75 ? 'blue' : 'cool');
+      effects.push({
+        type: 'particle', x, y,
+        vx: Math.cos(angle) * speed + impactVx * 0.12,
+        vy: Math.sin(angle) * speed + impactVy * 0.12,
+        t: 0,
+        maxT: kind === 'spark' ? 0.40 + Math.random() * 0.40 : 0.85 + Math.random() * 0.90,
+        size: kind === 'spark' ? 0.003 + Math.random() * 0.005 : 0.007 + Math.random() * 0.016,
+        kind,
+        damp: 0.30 + Math.random() * 0.30,
+        gravity: kind === 'spark' ? -0.4 : -0.6,
+        streak: kind === 'spark'
+      });
+    }
+  }
+
+  function spawnPoof(x, y) {
+    for (let i = 0; i < 7; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.08 + Math.random() * 0.18;
+      effects.push({
+        type: 'particle', x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed + 0.08,
+        t: 0,
+        maxT: 0.6 + Math.random() * 0.3,
+        size: 0.004 + Math.random() * 0.006,
+        kind: 'cool',
+        damp: 0.5,
+        gravity: 0,
+        streak: false
+      });
+    }
+  }
+
+  // Big bang — when a + slams into the target. Mixed crimson/blue, lots of sparks.
+  function spawnMassiveExplosion(x, y, impactVx = 0, impactVy = 0) {
+    // Two stacked flashes, longer-lived
+    effects.push({ type: 'flash', x, y, t: 0,     maxT: 0.55, color: 'red'  });
+    effects.push({ type: 'flash', x, y, t: -0.06, maxT: 0.45, color: 'blue' });
+    // Many staggered rings, both colors
+    effects.push({ type: 'ring', x, y, t: 0,     maxT: 0.85, color: 'red'  });
+    effects.push({ type: 'ring', x, y, t: -0.06, maxT: 0.80, color: 'blue' });
+    effects.push({ type: 'ring', x, y, t: -0.13, maxT: 0.70, color: 'dark' });
+    effects.push({ type: 'ring', x, y, t: -0.21, maxT: 0.60, color: 'red'  });
+    effects.push({ type: 'ring', x, y, t: -0.30, maxT: 0.50, color: 'blue' });
+    // 64-particle burst across all kinds
+    const N = 64;
+    for (let i = 0; i < N; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.9 + Math.random() * 2.6;
+      const r = Math.random();
+      const kind = r < 0.30 ? 'spark' : r < 0.55 ? 'hot' : r < 0.85 ? 'blue' : 'cool';
+      effects.push({
+        type: 'particle', x, y,
+        vx: Math.cos(angle) * speed + impactVx * 0.15,
+        vy: Math.sin(angle) * speed + impactVy * 0.15,
+        t: 0,
+        maxT: kind === 'spark' ? 0.50 + Math.random() * 0.55 : 1.10 + Math.random() * 1.30,
+        size: kind === 'spark' ? 0.004 + Math.random() * 0.007 : 0.009 + Math.random() * 0.020,
+        kind,
+        damp: 0.30 + Math.random() * 0.30,
+        gravity: kind === 'spark' ? -0.4 : -0.7,
+        streak: kind === 'spark'
+      });
+    }
+  }
+
+  // Brief red-dashed "X" at a blocked click location
+  function spawnReject(x, y) {
+    effects.push({ type: 'reject', x, y, t: 0, maxT: 0.45 });
+  }
+
+  function spawnScorePopup(x, y, text, kind) {
+    effects.push({
+      type: 'popup', x, y, text, kind, t: 0, maxT: 1.1,
+      drift: 0.55 // board units / second, upward
+    });
+  }
+
+  function updateEffects(dt) {
+    for (let i = effects.length - 1; i >= 0; i--) {
+      const e = effects[i];
+      e.t += dt;
+      if (e.type === 'particle') {
+        const f = Math.pow(e.damp, dt);
+        e.vx *= f;
+        e.vy *= f;
+        e.vy += e.gravity * dt;
+        e.x += e.vx * dt;
+        e.y += e.vy * dt;
+      } else if (e.type === 'popup') {
+        // Drift upward (board y increases upward)
+        e.y += e.drift * dt;
+      }
+      if (e.t >= e.maxT) effects.splice(i, 1);
+    }
+  }
+
+  // ============ Rendering ============
+  function drawGrid() {
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(26,31,46,0.06)';
+    ctx.beginPath();
+    for (let v = -2; v <= 2.001; v += 0.1) {
+      const cx = (v + 2) * PX;
+      ctx.moveTo(cx + 0.5, 0); ctx.lineTo(cx + 0.5, H);
+    }
+    for (let v = -1; v <= 1.001; v += 0.1) {
+      const cy = (1 - v) * PX;
+      ctx.moveTo(0, cy + 0.5); ctx.lineTo(W, cy + 0.5);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(26,31,46,0.18)';
+    ctx.beginPath();
+    for (let v = -2; v <= 2.001; v += 0.5) {
+      const cx = (v + 2) * PX;
+      ctx.moveTo(cx + 0.5, 0); ctx.lineTo(cx + 0.5, H);
+    }
+    for (let v = -1; v <= 1.001; v += 0.5) {
+      const cy = (1 - v) * PX;
+      ctx.moveTo(0, cy + 0.5); ctx.lineTo(W, cy + 0.5);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(26,31,46,0.5)';
+    ctx.lineWidth = 1;
+    const [ox, oy] = boardToCanvas(0, 0);
+    ctx.beginPath();
+    ctx.moveTo(ox + 0.5, 0); ctx.lineTo(ox + 0.5, H);
+    ctx.moveTo(0, oy + 0.5); ctx.lineTo(W, oy + 0.5);
+    ctx.stroke();
+
+    // Mark the spawn point at the origin — a clearly visible double ring
+    ctx.save();
+    // Solid inner ring
+    ctx.strokeStyle = 'rgba(26,31,46,0.65)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(ox, oy, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    // Dashed outer ring
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = 'rgba(26,31,46,0.50)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(ox, oy, 20, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.fillStyle = 'rgba(26,31,46,0.45)';
+    ctx.font = '9px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left';  ctx.textBaseline = 'top';
+    ctx.fillText('(-2, 1)', 5, 5);
+    ctx.textAlign = 'right';
+    ctx.fillText('(2, 1)', W - 5, 5);
+    ctx.textAlign = 'left';  ctx.textBaseline = 'bottom';
+    ctx.fillText('(-2, -1)', 5, H - 5);
+    ctx.textAlign = 'right';
+    ctx.fillText('(2, -1)', W - 5, H - 5);
+  }
+
+  function drawTarget() {
+    if (!target) return;
+    const [cx, cy] = boardToCanvas(target.x, target.y);
+    const r = P.rTarget * PX;
+    // Subtle blue halo
+    const grad = ctx.createRadialGradient(cx, cy, r, cx, cy, r * 2.4);
+    grad.addColorStop(0, 'rgba(30,111,174,0.30)');
+    grad.addColorStop(1, 'rgba(30,111,174,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    // Outer blue disc
+    ctx.fillStyle = '#1e6fae';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    // White ring
+    ctx.fillStyle = '#fffaf0';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2);
+    ctx.fill();
+    // Inner blue dot
+    ctx.fillStyle = '#1e6fae';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawPositive(p) {
+    const [cx, cy] = boardToCanvas(p.x, p.y);
+    const rPx = P.rPos * PX;
+    const grad = ctx.createRadialGradient(cx, cy, rPx, cx, cy, rPx * 2.4);
+    grad.addColorStop(0, 'rgba(200,48,47,0.30)');
+    grad.addColorStop(1, 'rgba(200,48,47,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rPx * 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#c8302f';
+    ctx.beginPath();
+    ctx.arc(cx, cy, rPx, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fffaf0';
+    ctx.lineWidth = 2.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - rPx * 0.5, cy); ctx.lineTo(cx + rPx * 0.5, cy);
+    ctx.moveTo(cx, cy - rPx * 0.5); ctx.lineTo(cx, cy + rPx * 0.5);
+    ctx.stroke();
+  }
+
+  function drawNegative(n) {
+    const age = elapsed - n.born;
+    let alpha = 1;
+    if (age > P.fadeBegin) {
+      alpha = Math.max(0, 1 - (age - P.fadeBegin) / (P.negLifetime - P.fadeBegin));
+    }
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const [cx, cy] = boardToCanvas(n.x, n.y);
+    const rPx = P.rNeg * PX;
+    const speed2 = n.vx * n.vx + n.vy * n.vy;
+    if (speed2 > 1e-4) {
+      const speed = Math.sqrt(speed2);
+      const trailLen = Math.min(45, speed * 14);
+      const tx = cx - (n.vx / speed) * trailLen;
+      const ty = cy + (n.vy / speed) * trailLen;
+      const tg = ctx.createLinearGradient(cx, cy, tx, ty);
+      tg.addColorStop(0, 'rgba(26,31,46,0.55)');
+      tg.addColorStop(1, 'rgba(26,31,46,0)');
+      ctx.strokeStyle = tg;
+      ctx.lineWidth = rPx * 1.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy); ctx.lineTo(tx, ty);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#1a1f2e';
+    ctx.beginPath();
+    ctx.arc(cx, cy, rPx, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fffaf0';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx - rPx * 0.55, cy); ctx.lineTo(cx + rPx * 0.55, cy);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFlash(e) {
+    const u = e.t / e.maxT;
+    if (u <= 0 || u >= 1) return;
+    const [cx, cy] = boardToCanvas(e.x, e.y);
+    const r = 85;
+    const a = Math.pow(1 - u, 1.4);
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    if (e.color === 'blue') {
+      g.addColorStop(0,    `rgba(220,240,255,${0.95 * a})`);
+      g.addColorStop(0.25, `rgba(110,180,235,${0.70 * a})`);
+      g.addColorStop(0.6,  `rgba(50,100,170,${0.35 * a})`);
+      g.addColorStop(1,    'rgba(30,111,174,0)');
+    } else {
+      g.addColorStop(0,    `rgba(255,250,220,${0.95 * a})`);
+      g.addColorStop(0.25, `rgba(255,200,90,${0.70 * a})`);
+      g.addColorStop(0.6,  `rgba(220,90,50,${0.35 * a})`);
+      g.addColorStop(1,    'rgba(200,48,47,0)');
+    }
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawRing(e) {
+    const u = e.t / e.maxT;
+    if (u <= 0 || u >= 1) return;
+    const [cx, cy] = boardToCanvas(e.x, e.y);
+    const baseR = P.rPos * PX;
+    const r = baseR * (1 + u * 7.5);
+    let strokeColor;
+    if (e.color === 'red')       strokeColor = `rgba(200,48,47,${(1 - u) * 0.85})`;
+    else if (e.color === 'blue') strokeColor = `rgba(30,111,174,${(1 - u) * 0.85})`;
+    else                          strokeColor = `rgba(26,31,46,${(1 - u) * 0.55})`;
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 3.5 * (1 - u) + 0.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  function drawParticle(e) {
+    const u = e.t / e.maxT;
+    if (u >= 1) return;
+    const [cx, cy] = boardToCanvas(e.x, e.y);
+    const alpha = 1 - u;
+    const sizePx = e.size * PX * (1 - u * 0.4);
+    if (sizePx <= 0) return;
+
+    if (e.streak) {
+      const tailX = e.x - e.vx * 0.05;
+      const tailY = e.y - e.vy * 0.05;
+      const [tcx, tcy] = boardToCanvas(tailX, tailY);
+      const tg = ctx.createLinearGradient(cx, cy, tcx, tcy);
+      tg.addColorStop(0, `rgba(255,240,170,${alpha})`);
+      tg.addColorStop(1, `rgba(255,240,170,0)`);
+      ctx.strokeStyle = tg;
+      ctx.lineWidth = sizePx * 1.8;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy); ctx.lineTo(tcx, tcy);
+      ctx.stroke();
+    }
+
+    if (e.kind === 'spark') {
+      ctx.fillStyle = `rgba(255,220,120,${alpha * 0.30})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, sizePx * 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,245,180,${alpha})`;
+    } else if (e.kind === 'hot') {
+      const R = 200 + Math.floor(55 * u);
+      const G = Math.floor(60 + 130 * (1 - u));
+      ctx.fillStyle = `rgba(${R},${G},47,${alpha})`;
+    } else if (e.kind === 'blue') {
+      const R = 40 + Math.floor(60 * u);
+      const G = 130 + Math.floor(60 * (1 - u));
+      const B = 200 + Math.floor(35 * (1 - u));
+      ctx.fillStyle = `rgba(${R},${G},${B},${alpha})`;
+    } else { // cool
+      ctx.fillStyle = `rgba(26,31,46,${alpha * 0.9})`;
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, sizePx, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawPopup(e) {
+    const u = e.t / e.maxT;
+    if (u >= 1) return;
+    const [cx, cy] = boardToCanvas(e.x, e.y);
+    // Pop-in scale (first 15%) → hold → fade (last 35%)
+    let scale, alpha;
+    if (u < 0.15) { scale = 0.6 + (u / 0.15) * 0.6; alpha = u / 0.15; }
+    else if (u < 0.65) { scale = 1.2; alpha = 1; }
+    else { scale = 1.2; alpha = Math.max(0, 1 - (u - 0.65) / 0.35); }
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = `italic ${Math.round(34 * scale)}px "Instrument Serif", serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Cream outline for legibility
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#f9f4e6';
+    ctx.strokeText(e.text, cx, cy);
+    ctx.fillStyle = e.kind === 'gain' ? '#2a7a3a' : '#c8302f';
+    ctx.fillText(e.text, cx, cy);
+    ctx.restore();
+  }
+
+  function drawReject(e) {
+    const u = e.t / e.maxT;
+    if (u >= 1) return;
+    const [cx, cy] = boardToCanvas(e.x, e.y);
+    const baseR = P.rPos * PX;
+    const r = baseR * (1 + u * 0.8);
+    const alpha = 1 - u;
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = `rgba(200,48,47,${alpha * 0.9})`;
+    ctx.lineWidth = 2.5 * alpha + 0.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    // X mark inside
+    ctx.setLineDash([]);
+    const sz = baseR * 0.5;
+    ctx.lineWidth = 2 * alpha + 0.6;
+    ctx.beginPath();
+    ctx.moveTo(cx - sz, cy - sz); ctx.lineTo(cx + sz, cy + sz);
+    ctx.moveTo(cx + sz, cy - sz); ctx.lineTo(cx - sz, cy + sz);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function render() {
+    ctx.fillStyle = '#f9f4e6';
+    ctx.fillRect(0, 0, W, H);
+    drawGrid();
+    drawTarget();
+    for (const p of positives) drawPositive(p);
+    // FX layering: flash → ring → particles → negatives → reject + popups on top
+    for (const e of effects) if (e.type === 'flash')    drawFlash(e);
+    for (const e of effects) if (e.type === 'ring')     drawRing(e);
+    for (const e of effects) if (e.type === 'particle') drawParticle(e);
+    for (const n of negatives) drawNegative(n);
+    for (const e of effects) if (e.type === 'reject')   drawReject(e);
+    for (const e of effects) if (e.type === 'popup')    drawPopup(e);
+  }
+
+  // ============ HUD ============
+  const $score = document.getElementById('score');
+  const $t  = document.getElementById('time');
+
+  function formatTime(secs) {
+    secs = Math.max(0, Math.ceil(secs));
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function updateHud() {
+    // Score
+    $score.textContent = score > 0 ? '+' + score : score;
+    $score.classList.remove('pos', 'neg');
+    if (score > 0) $score.classList.add('pos');
+    else if (score < 0) $score.classList.add('neg');
+    // Time
+    const timeLeft = Math.max(0, P.gameDuration - elapsed);
+    $t.classList.remove('low', 'over');
+    $t.textContent = formatTime(timeLeft);
+    if (gameOver) {
+      $t.classList.add('over');
+    } else if (started && timeLeft <= 10) {
+      $t.classList.add('low');
+    }
+  }
+
+  // ============ Main loop ============
+  function loop(t) {
+    if (!lastTime) lastTime = t;
+    const dt = Math.min((t - lastTime) / 1000, 0.05);
+    lastTime = t;
+
+    if (started && !gameOver) {
+      elapsed += dt;
+      if (elapsed >= P.gameDuration) {
+        elapsed = P.gameDuration;
+        gameOver = true;
+        showGameOverOverlay();
+      }
+    }
+
+    physics(dt);
+    updateEffects(dt);
+    render();
+    updateHud();
+    requestAnimationFrame(loop);
+  }
+
+  // ============ Init ============
+  placeTarget();        // visible from the start so the player knows the goal
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
