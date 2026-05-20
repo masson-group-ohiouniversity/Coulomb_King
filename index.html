@@ -412,6 +412,8 @@
       }
     }
     positives.push({ x: bx, y: by, vx: 0, vy: 0 });
+    score += 1;
+    spawnScorePopup(bx, by, '+1', 'gain');
     if (!started) {
       started = true;
       sinceLastSpawn = 0;
@@ -512,8 +514,8 @@
         if (dx * dx + dy * dy < (P.rPos + P.rNeg) * (P.rPos + P.rNeg)) {
           spawnExplosion(p.x, p.y, n.vx, n.vy);
           if (!gameOver) {
-            score -= 1;
-            spawnScorePopup(p.x, p.y, '−1', 'loss');
+            score -= 3;
+            spawnScorePopup(p.x, p.y, '−3', 'loss');
           }
           positives.splice(j, 1);
           hit = true;
@@ -527,8 +529,11 @@
         if (dx * dx + dy * dy < (P.rTarget + P.rNeg) * (P.rTarget + P.rNeg)) {
           spawnTargetExplosion(target.x, target.y, n.vx, n.vy);
           if (!gameOver) {
-            score += 5;
-            spawnScorePopup(target.x, target.y, '+5', 'gain');
+            // Bonus scales with the number of + charges currently on the board —
+            // rewards risky, dense layouts.
+            const bonus = 5 * positives.length;
+            score += bonus;
+            spawnScorePopup(target.x, target.y, '+' + bonus, 'gain');
             placeTarget();
           } else {
             target = null;
@@ -583,8 +588,8 @@
           if (dxt * dxt + dyt * dyt < (P.rTarget + P.rPos) * (P.rTarget + P.rPos)) {
             spawnMassiveExplosion(target.x, target.y, p.vx, p.vy);
             if (!gameOver) {
-              score -= 3;
-              spawnScorePopup(target.x, target.y, '−3', 'loss');
+              score -= 5;
+              spawnScorePopup(target.x, target.y, '−5', 'loss');
             }
             // Target stays; positive is consumed
             positives.splice(i, 1);
